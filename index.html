@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>治水华章 · 都江堰数字再现 | 三列均衡布局</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/map/js/china.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+    <!-- 注意：以下静态文件引用在实际运行时需保证路径存在，但本页面核心功能不依赖它们，若缺失不影响主要UI与时间轴 -->
+    <script src="/static/js/BambooTimeline.js"></script>
+    <script src="/static/js/Line Chart.js"></script>
+    <script src="/static/js/GDPdata.js"></script>
+
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+        }
+
+        body {
+            background: #DBEEEA;
+            min-height: 100vh;
+            padding: 20px;
+            background-image: url('images/1-003.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            display: none;
+        }
+
+        .loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1A5E52; z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            transition: opacity 0.5s;
+        }
+        .loadbox {
+            background: rgba(255,248,225,0.95); padding: 20px 40px; border-radius: 60px;
+            color: #22685C; font-size: 18px;
+            box-shadow: 0 0 30px rgba(100,140,120,0.5);
+        }
+        .loadbox img { width: 32px; vertical-align: middle; margin-right: 12px; }
+
+        .head {
+            background: #FCC5C0;
+            padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+            border-radius: 20px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%; max-width: 1600px;
+        }
+        .head h1 { color: white; font-size: 28px; font-weight: 500; letter-spacing: 2px; }
+        .head h1 a { color: white; text-decoration: none; }
+        .head h1 span { font-size: 16px; margin-left: 20px; }
+        .head h1 span a { color: #F5E6B0; text-decoration: none; border-left: 1px solid #7EB6AB; padding-left: 15px; }
+        .weather { background: #FCC5C0; padding: 8px 18px; border-radius: 40px; font-size: 16px; color: #F9F3DA; }
+
+        .mainbox { max-width: 1800px; width: 100%; margin: 0 auto; padding-bottom: 80px; }
+        .three-columns { display: grid; grid-template-columns: 0.85fr 1.3fr 0.85fr; gap: 28px; width: 100%; align-items: start; }
+        .col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+        .module-card {
+            background: transparent; backdrop-filter: blur(6px); border-radius: 20px;
+            border: 1px solid #FA9FB5; overflow: visible !important;
+            box-shadow: 0 8px 20px rgba(70, 100, 90, 0.15); transition: all 0.3s ease; width: 100%;
+        }
+        .module-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(50, 90, 80, 0.25); }
+
+        .module-title {
+            font-size: 18px; padding: 12px 16px;
+            border-left: 5px solid #FA9FB5;
+            color: #F7F4F9;
+            font-weight: 600;
+            background: rgba(250, 159, 181, 0.15);
+            border-bottom: 1px solid rgba(250, 159, 181, 0.3);
+        }
+        .module-title i {
+            margin-right: 10px;
+            color: #F7F4F9;
+        }
+
+        .module-content { padding: 16px; overflow: visible !important; }
+
+        .builder-card .module-content,
+        .builder-card .builder-text,
+        .builder-card .builder-text strong,
+        .builder-card .builder-text span.highlight,
+        .builder-card .builder-text .quote {
+            color: #F7F4F9 !important;
+        }
+
+        .stats-card .module-content,
+        .stats-card .stats-grid,
+        .stats-card .stat-item,
+        .stats-card .stat-dynasty,
+        .stats-card .stat-number,
+        .stats-card .stat-unit,
+        .stats-card .stat-footer {
+            color: #F7F4F9 !important;
+        }
+        .stats-card .stat-number {
+            background: none !important; -webkit-background-clip: unset !important; background-clip: unset !important;
+            color: #F7F4F9 !important;
+        }
+
+        .builder-text { font-size: 14px; line-height: 1.6; }
+        .builder-text strong { font-size: 16px; }
+        .builder-text .quote { font-style: italic; display: inline-block; margin-top: 8px; }
+
+        .stats-grid { display: flex; flex-direction: column; gap: 10px; }
+        .stat-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(250, 159, 181, 0.5); padding-bottom: 8px; }
+        .stat-dynasty { font-size: 14px; font-weight: 500; }
+        .stat-number { font-size: 20px; font-weight: 700; }
+        .stat-unit { font-size: 11px; margin-left: 4px; }
+        .stat-footer { margin-top: 12px; font-size: 12px; text-align: center; padding-top: 6px; border-top: 1px solid rgba(250, 159, 181, 0.3); }
+
+        #echartFlow, #echartGDP, #echartPerGDP {
+            color: #F7F4F9 !important;
+        }
+        #echartFlow text, #echartGDP text, #echartPerGDP text {
+            fill: #F7F4F9 !important;
+        }
+
+        .map-container { position: relative; width: 100%; height: 620px; border-radius: 16px; overflow: visible; background: transparent !important; backdrop-filter: none !important; padding: 30px 0; }
+        #china-map { width: 100%; height: 100%; border-radius: 16px; background: transparent; }
+
+        /* 审图号样式：上移避免遮挡 */
+        .map-review-number {
+            position: absolute;
+            bottom: 40px; /* 从10px上移到40px，避开底部提示栏 */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: #004529;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .map-card { background: transparent !important; backdrop-filter: none !important; border: 1px solid #FA9FB5 !important; box-shadow: 0 8px 20px rgba(70, 100, 90, 0.15) !important; }
+        .map-card:hover { transform: translateY(-3px) !important; box-shadow: 0 12px 28px rgba(50, 90, 80, 0.25) !important; }
+        .map-card .module-title { background: rgba(250, 159, 181, 0.15); backdrop-filter: blur(4px); border-left: 5px solid #FA9FB5; border-bottom: 1px solid rgba(250, 159, 181, 0.3); color: #F7F4F9; }
+        .map-card .module-title i { color: #F7F4F9; }
+        .map-card .module-content { padding: 0; background: transparent !important; }
+
+        /* ========== 时间轴样式：所有文字颜色改为 #C7E9C0（淡绿色） ========== */
+        .timeline-module .module-content { padding: 0; overflow: visible !important; position: relative; z-index: 5; }
+        .timeline-module .bamboo-timeline {
+            padding: 20px 16px 20px 30px !important;
+            min-height: 360px !important;
+            position: relative;
+            z-index: 10;
+            overflow: visible !important;
+        }
+        .timeline-module .timeline-title {
+            margin-bottom: 18px !important;
+            position: relative;
+            z-index: 11;
+        }
+        .timeline-module .timeline-title h2 {
+            font-size: 18px !important;
+            letter-spacing: 2px !important;
+            position: relative;
+            z-index: 12;
+            color: #FDAE6B !important;
+        }
+        .timeline-module .timeline-title p {
+            font-size: 11px !important;
+            position: relative;
+            z-index: 12;
+            color: #FDAE6B !important;
+        }
+        .timeline-module .timeline-container {
+            padding: 10px 0 15px !important;
+            position: relative;
+            z-index: 11;
+            overflow: visible !important;
+        }
+        .timeline-module .timeline-line {
+            top: 32px !important;
+            height: 2px !important;
+            position: relative;
+            z-index: 10;
+        }
+        .timeline-module .timeline-node {
+            width: 100px !important;
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
+            z-index: 12;
+        }
+        .timeline-module .timeline-node:hover { transform: translateY(-4px); }
+        .timeline-module .node-marker {
+            width: 18px !important;
+            height: 8px !important;
+            margin-bottom: 6px !important;
+            position: relative;
+            z-index: 13;
+        }
+        .timeline-module .node-year {
+            font-size: 11px !important;
+            margin: 3px 0 !important;
+            position: relative;
+            z-index: 13;
+            color:#00441B !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+        }
+        .timeline-module .node-title {
+            font-size: 13px !important;
+            margin: 3px 0 !important;
+            position: relative;
+            z-index: 13;
+            color: #00441B  !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+        }
+        .timeline-module .node-desc {
+            font-size: 9px !important;
+            line-height: 1.3 !important;
+            position: relative;
+            z-index: 13;
+            color: #00441B  !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4) !important;
+        }
+
+        /* 关键修改：节点详情浮层样式，背景改为#A8DDB5 */
+        .timeline-module .node-detail {
+            position: fixed !important;
+            width: 260px !important;
+            background: #A8DDB5 !important;
+            backdrop-filter: blur(12px) !important;
+            border-radius: 20px !important;
+            padding: 14px 18px !important;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.4), 0 0 0 1px rgba(199, 233, 192, 0.6) !important;
+            z-index: 10000 !important;
+            color: #C7E9C0 !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+            border: 1px solid #C7E9C0 !important;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: auto;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        /* 浮层内部文字样式，确保对比度 */
+        .timeline-module .node-detail strong,
+        .timeline-module .node-detail b {
+            color: #41AB5D !important;
+            font-weight: 700;
+        }
+        .timeline-module .node-detail .detail-year {
+            font-size: 16px;
+            border-left: 3px solid #C7E9C0;
+            padding-left: 10px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #41AB5D;
+        }
+        .timeline-module .node-detail .detail-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin: 8px 0 6px;
+            color: #FAC05E;
+        }
+        .timeline-module .node-detail .detail-desc {
+            color: #C7E9C0;
+            margin-top: 6px;
+        }
+
+        /* 原有其他样式保持不变 */
+        .timeline-module { margin-top: 40px; border: 1px solid #FA9FB5; }
+        .timeline-module .module-title { border-left: 5px solid #FA9FB5; color: #F7F4F9; }
+        .timeline-module .module-title i { color: #F7F4F9; }
+
+        .col:nth-child(2) { display: flex; flex-direction: column; gap: 24px; }
+        .chart-container { width: 100%; height: 380px; overflow: visible !important; }
+        .wordcloud-container { width: 100%; height: 280px; }
+        #echartWordcloud { width: 100%; height: 100%; }
+
+        .floating-card {
+            position: absolute; width: 180px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px);
+            border-radius: 14px; overflow: hidden; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            cursor: pointer; transition: all 0.3s ease; z-index: 100; opacity: 0; visibility: hidden;
+            border: 2px solid #FA9FB5;
+        }
+        .floating-card.active { opacity: 1; visibility: visible; animation: fadeInUp 0.3s ease forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .floating-card img { width: 100%; height: 140px; object-fit: cover; display: block; }
+
+        .close-all-cards {
+            position: absolute; top: 8px; right: 8px; width: 32px; height: 32px;
+            background: rgba(74, 154, 143, 0.9); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 200;
+            color: white; font-size: 18px; transition: all 0.3s; opacity: 0; visibility: hidden;
+        }
+        .close-all-cards.active { opacity: 1; visibility: visible; }
+        .click-hint {
+            position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6); color: white; padding: 4px 12px; border-radius: 20px;
+            font-size: 11px; z-index: 50; pointer-events: none; white-space: nowrap;
+        }
+
+        @media (max-width: 900px) {
+            .three-columns { grid-template-columns: 1fr; gap: 20px; }
+            body { padding: 15px; }
+            .head { flex-direction: column; gap: 10px; text-align: center; }
+            .map-container { height: 420px; padding: 20px 0; }
+            .col:nth-child(2) { display: flex; flex-direction: column; gap: 24px; }
+            .timeline-module { margin-top: 0; }
+            .timeline-module .node-detail { width: 220px !important; font-size: 11px !important; padding: 10px 14px !important; }
+        }
+        @media (max-width: 550px) {
+            .module-title { font-size: 16px; padding: 10px 12px; }
+            .module-content { padding: 12px; }
+            .stat-number { font-size: 16px; }
+            .builder-text { font-size: 12px; }
+            .timeline-module .node-detail { width: 200px !important; }
+        }
+
+        .back-to-top {
+            position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px;
+            background: #4A9A8F; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0.75; transition: 0.3s; z-index: 99; color: white; font-size: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .back-to-top:hover { opacity: 1; transform: scale(1.05); }
+
+        /* 防止任何全局滚动条抖动 */
+        body.modal-open { overflow: auto; }
+    </style>
+</head>
+<body>
+
+<div class="loading" id="loadingDiv">
+    <div class="loadbox">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' stroke='%234A9A8F' stroke-width='6' fill='none' stroke-dasharray='60 140'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 50 50' to='360 50 50' dur='1s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E" style="width:28px;">
+        都江堰 · 数字再现加载中...
+    </div>
+</div>
+
+<div class="head">
+    <h1>
+        <a href="#">🏯 治水华章 · 都江堰数字再现</a>
+        <span><a href="monitor.html">渠首工程</a></span>
+        <span><a href="#">灌溉遗产</a></span>
+    </h1>
+    <div class="weather"><span id="showTime"></span> 🌾 天府之源</div>
+</div>
+
+<div class="mainbox">
+    <div class="three-columns">
+        <div class="col">
+            <div class="module-card builder-card" style="height: auto; min-height: 220px;">
+                <div class="module-title"><i class="fas fa-user-tie"></i> 建造者 · 李冰</div>
+                <div class="module-content builder-text">
+                    <strong>李冰</strong>（约前302—前235），战国晚期著名水利家。秦昭王末年任蜀郡守，主持创建都江堰。<br>
+                    以<span class="highlight">“道法自然”</span>为纲，火烧水泼开凿宝瓶口，立三石人观测水位，奠定天府根基。<br>
+                    <span class="quote">司马迁《史记》：“此渠皆可行舟，有余则用溉浸，百姓享其利。”</span>
+                </div>
+            </div>
+
+            <div class="module-card stats-card">
+                <div class="module-title"><i class="fas fa-chart-line"></i> 灌溉面积增长 · STATISTICS</div>
+                <div class="module-content">
+                    <div class="stats-grid">
+                        <div class="stat-item"><span class="stat-dynasty">汉代</span><span><span class="stat-number">70</span><span class="stat-unit">万亩</span></span></div>
+                        <div class="stat-item"><span class="stat-dynasty">宋代</span><span><span class="stat-number">150</span><span class="stat-unit">万亩</span></span></div>
+                        <div class="stat-item"><span class="stat-dynasty">清代</span><span><span class="stat-number">300</span><span class="stat-unit">万亩</span></span></div>
+                        <div class="stat-item"><span class="stat-dynasty">1949年</span><span><span class="stat-number">286</span><span class="stat-unit">万亩</span></span></div>
+                        <div class="stat-item"><span class="stat-dynasty">2025年</span><span><span class="stat-number">1164.7</span><span class="stat-unit">万亩</span></span></div>
+                        <div class="stat-item"><span class="stat-dynasty">规划2030</span><span><span class="stat-number">1519</span><span class="stat-unit">万亩</span></span></div>
+                    </div>
+                    <div class="stat-footer"><i class="fas fa-users"></i> 灌区惠及3000万人口 · 全国第一大灌区</div>
+                </div>
+            </div>
+
+            <div class="module-card">
+                <div class="module-title"><i class="fas fa-water"></i> 岷江年均径流量与增长率变化</div>
+                <div class="module-content"><div id="echartFlow" class="chart-container"></div></div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="module-card map-card">
+                <div class="module-title"><i class="fas fa-map-marked-alt"></i> 都江堰灌地理位置</div>
+                <div class="module-content" style="padding: 0; background: transparent;">
+                    <div class="map-container" id="mapContainer">
+                        <div id="china-map"></div>
+                        <!-- 审图号 -->
+                        <div class="map-review-number">审图号GS（2020）4637号</div>
+
+                        <div class="click-hint" id="clickHint">✨ 点击四川省查看都江堰美景 ✨</div>
+                        <div class="close-all-cards" id="closeAllCardsBtn">✕</div>
+                        <div id="card1" class="floating-card" data-position="top"><img src="images/001.jpg" alt="都江堰美景1"></div>
+                        <div id="card2" class="floating-card" data-position="right"><img src="images/003.jpg" alt="都江堰美景2"></div>
+                        <div id="card3" class="floating-card" data-position="bottom"><img src="images/002.jpg" alt="都江堰美景3"></div>
+                        <div id="card4" class="floating-card" data-position="left"><img src="images/004.jpg" alt="都江堰美景4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="module-card timeline-module">
+                <div class="module-title"><i class="fas fa-hourglass-half"></i> 建造时间轴 · CHRONOLOGY</div>
+                <div class="module-content" id="bamboo-timeline-container"></div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="module-card">
+                <div class="module-title"><i class="fas fa-chart-simple"></i> 灌区GDP贡献增长率</div>
+                <div class="module-content"><div id="echartGDP" class="chart-container" style="height:300px;"></div></div>
+            </div>
+
+            <div class="module-card">
+                <div class="module-title"><i class="fas fa-coins"></i> 成都平原各城市GDP（亿元）</div>
+                <div class="module-content">
+                    <div id="echartPerGDP" class="chart-container" style="height:320px;"></div>
+                </div>
+            </div>
+
+            <div class="module-card">
+                <div class="module-title"><i class="fas fa-tags"></i> 水利文化关键词云</div>
+                <div class="module-content wordcloud-container"><div id="echartWordcloud" style="width:100%; height:100%;"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'});">
+    <i class="fas fa-arrow-up"></i>
+</div>
+
+<script src="/static/js/Ci Yun Tu.js"></script>
+<script>
+    // 核心: 重写或增强BambooTimeline的节点点击行为，确保详情浮层使用fixed定位，极高z-index，不被背景或其他元素遮挡。
+    // 同时保留原有时间轴的外观与功能，仅修改点击展示逻辑。
+    document.addEventListener('DOMContentLoaded', function() {
+        const timelineContainer = document.getElementById('bamboo-timeline-container');
+        if (timelineContainer) {
+            // 若BambooTimeline存在则使用它渲染，但之后需要劫持节点点击事件以使用自定义浮层。
+            // 为确保即使BambooTimeline未定义，也手动构造时间轴数据并添加高优先级浮层。
+            // 定义都江堰时间轴数据（依据图片中的关键节点）
+            const timelineData = [
+                { year: "前256年", title: "李冰始建", desc: "创建都江堰，渠首三大主体工程奠基，灌区近10万亩。", detail: "秦昭王时期，李冰采用‘无坝引水’智慧，凿开宝瓶口，筑鱼嘴分水堤，开创天府文明。" },
+                { year: "公元662年", title: "灌区扩展", desc: "唐代扩建，灌区扩展至近10万亩，效益显著。", detail: "唐朝重视水利，渠道整治，灌区面积首次大幅跃升，支撑成都平原繁荣。" },
+                { year: "宋代", title: "三大主体改造", desc: "宋代飞沙堰建成，完善渠首工程，灌区达150万亩。", detail: "飞沙堰溢洪道修建，提升防洪与排沙能力，灌区体系臻于完备。" },
+                { year: "明清", title: "乡修完善", desc: "多次修缮，灌溉面积稳步提升至300万亩。", detail: "明清时期岁修制度成熟，‘深淘滩低作堰’治水箴言推广，灌区持续扩展。" },
+                { year: "2000年", title: "世界遗产", desc: "列入世界文化遗产，灌区超千万亩。", detail: "2000年11月都江堰被联合国教科文组织列为世界文化遗产，成为人类水利丰碑。" }
+            ];
+
+            // 如果BambooTimeline构造函数存在，则使用其渲染，但之后覆盖其点击行为
+            if (typeof BambooTimeline !== 'undefined') {
+                try {
+                    new BambooTimeline('bamboo-timeline-container', {
+                        title: '◉ 治水华章 · 都江堰年谱 ◉',
+                        subtitle: '千年灌溉文明 · 天府之源',
+                        backgroundImage: 'images/Juan Zhou.jpg'
+                    });
+                } catch(e) { console.warn(e); manualRenderTimeline(timelineContainer, timelineData); }
+            } else {
+                manualRenderTimeline(timelineContainer, timelineData);
+            }
+
+            // 自定义渲染时间轴函数，并绑定点击事件（确保详情浮于顶层）
+            function manualRenderTimeline(container, data) {
+                if(!container) return;
+                const html = `
+                    <div class="bamboo-timeline">
+                        <div class="timeline-title" style="text-align:center; margin-bottom:20px;">
+                            <h2 style="color:#C7E9C0;">◉ 治水华章 · 都江堰年谱 ◉</h2>
+                            <p style="color:#C7E9C0; font-size:12px;">千年灌溉文明 · 天府之源</p>
+                        </div>
+                        <div class="timeline-container" style="position:relative; display:flex; justify-content:space-around; flex-wrap:wrap;">
+                            ${data.map((item, idx) => `
+                                <div class="timeline-node" data-idx="${idx}" style="text-align:center; width:100px; cursor:pointer; margin-bottom:10px;">
+                                    <div class="node-marker" style="width:18px; height:8px; background:#FA9FB5; margin:0 auto 6px; border-radius:4px;"></div>
+                                    <div class="node-year" style="color:#C7E9C0; font-size:12px; font-weight:bold;">${item.year}</div>
+                                    <div class="node-title" style="color:#C7E9C0; font-size:14px; font-weight:500;">${item.title}</div>
+                                    <div class="node-desc" style="color:#C7E9C0; font-size:10px;">${item.desc}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="clear:both;"></div>
+                    </div>
+                `;
+                container.innerHTML = html;
+                // 添加全局详情浮层移除监听
+                attachDetailEvents(data);
+            }
+
+            function attachDetailEvents(data) {
+                const nodes = document.querySelectorAll('.timeline-node');
+                let activeDetail = null;
+                // 点击其他地方关闭浮层
+                const closeDetail = () => {
+                    if(activeDetail && activeDetail.parentNode) activeDetail.remove();
+                    activeDetail = null;
+                };
+                document.body.addEventListener('click', function(e) {
+                    if(!e.target.closest('.timeline-node') && activeDetail) {
+                        closeDetail();
+                    }
+                });
+
+                nodes.forEach(node => {
+                    node.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const idx = node.getAttribute('data-idx');
+                        if(idx !== null && data[idx]) {
+                            const item = data[idx];
+                            // 移除现有浮层
+                            if(activeDetail) activeDetail.remove();
+                            // 创建全新的固定定位浮层，确保在最顶层，不会被任何背景或卡片遮盖
+                            const detailDiv = document.createElement('div');
+                            detailDiv.className = 'node-detail';
+                            // 使用fixed定位基于鼠标位置或节点位置智能偏移
+                            const rect = node.getBoundingClientRect();
+                            let leftPos = rect.left + rect.width / 2 - 130;
+                            let topPos = rect.top - 100;
+                            // 边界检测避免超出视口
+                            if(topPos < 20) topPos = rect.bottom + 10;
+                            if(leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 280;
+                            if(leftPos < 10) leftPos = 10;
+                            detailDiv.style.position = 'fixed';
+                            detailDiv.style.left = leftPos + 'px';
+                            detailDiv.style.top = topPos + 'px';
+                            detailDiv.style.zIndex = '10001';
+                            detailDiv.style.backgroundColor = '#A8DDB5';
+                            detailDiv.style.backdropFilter = 'blur(14px)';
+                            detailDiv.style.borderRadius = '20px';
+                            detailDiv.style.boxShadow = '0 20px 35px rgba(0,0,0,0.5), 0 0 0 2px #C7E9C0';
+                            detailDiv.style.padding = '16px 18px';
+                            detailDiv.style.maxWidth = '280px';
+                            detailDiv.style.color = '#C7E9C0';
+                            detailDiv.style.fontSize = '13px';
+                            detailDiv.innerHTML = `
+                                <div class="detail-year" style="border-left:3px solid #C7E9C0; padding-left:12px; margin-bottom:10px; font-weight:bold; font-size:1.1rem;">📅 ${item.year}</div>
+                                <div class="detail-title" style="font-size:1.1rem; font-weight:bold; color:#FAC05E; margin:8px 0 6px;">🏛️ ${item.title}</div>
+                                <div class="detail-desc" style="margin-top:5px; line-height:1.5;">${item.detail || item.desc}</div>
+                                <div style="margin-top:12px; font-size:11px; text-align:right; border-top:1px dashed rgba(199,233,192,0.4); padding-top:6px;"><i class="fas fa-hand-pointer"></i> 点击任意处关闭</div>
+                            `;
+                            document.body.appendChild(detailDiv);
+                            activeDetail = detailDiv;
+                            // 点击浮层自身不关闭，但点击外部关闭
+                            detailDiv.addEventListener('click', (ev) => ev.stopPropagation());
+                        }
+                    });
+                });
+            }
+
+            // 如果已经通过BambooTimeline渲染，则等待一小段时间后劫持节点事件
+            if (typeof BambooTimeline !== 'undefined') {
+                setTimeout(() => {
+                    const nodes = document.querySelectorAll('.timeline-node');
+                    if(nodes.length === 0) return;
+                    // 重新提取数据（基于显示内容）
+                    const dataFromDom = [];
+                    nodes.forEach(node => {
+                        const year = node.querySelector('.node-year')?.innerText || '';
+                        const title = node.querySelector('.node-title')?.innerText || '';
+                        const desc = node.querySelector('.node-desc')?.innerText || '';
+                        let detailText = '';
+                        if(year.includes('前256') || year.includes('256')) detailText = '秦昭王时期，李冰采用‘无坝引水’智慧，凿开宝瓶口，筑鱼嘴分水堤，开创天府文明。';
+                        else if(year.includes('662')) detailText = '唐朝重视水利，渠道整治，灌区面积首次大幅跃升，支撑成都平原繁荣。';
+                        else if(year.includes('宋')) detailText = '飞沙堰溢洪道修建，提升防洪与排沙能力，灌区体系臻于完备。';
+                        else if(year.includes('明') || year.includes('清')) detailText = '明清时期岁修制度成熟，‘深淘滩低作堰’治水箴言推广，灌区持续扩展。';
+                        else if(year.includes('2000')) detailText = '2000年11月都江堰被联合国教科文组织列为世界文化遗产，成为人类水利丰碑。';
+                        else detailText = desc;
+                        dataFromDom.push({ year, title, desc, detail: detailText });
+                    });
+                    attachDetailEvents(dataFromDom);
+                }, 200);
+            } else {
+                // 手动渲染情况已经绑定事件
+            }
+        }
+
+        // 其余原有图表初始化保持不变 (确保流量图、GDP图等正常运行)
+        const domPer = document.getElementById('echartPerGDP');
+        if(domPer) {
+            const myChart = echarts.init(domPer);
+            const option = {
+                backgroundColor: 'transparent',
+                title: { text: '成都平原各城市GDP占比', left: 'center', textStyle: { color: '#F7F4F9', fontSize: 15 } },
+                tooltip: { trigger: 'item', formatter: '{b}: {c} 亿元 ({d}%)' },
+                legend: { orient: 'vertical', right: 5, top: 'center', textStyle: { color: '#F7F4F9' } },
+                series: [{ name: '人均GDP', type: 'pie', radius: ['40%', '70%'], center: ['40%', '50%'],
+                    data: [
+                        { value: 24764, name: '成都' },{ value: 3387, name: '德阳' },{ value: 4401, name: '绵阳' },
+                        { value: 2502, name: '乐山' },{ value: 2009, name: '眉山' },{ value: 2002, name: '遂宁' },
+                        { value: 2051, name: '内江' },
+                    ], label: { show: true, color: '#F7F4F9' }, itemStyle: { borderRadius: 5, borderColor: '#F7F4F9', borderWidth: 1 } }],
+                color: ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FECA57','#FF9FF3','#54A0FF','#5F27CD']
+            };
+            myChart.setOption(option);
+            window.addEventListener('resize', () => myChart.resize());
+        }
+    });
+
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            let loading = document.getElementById('loadingDiv');
+            if(loading) { loading.style.opacity = '0'; setTimeout(() => { loading.style.display = 'none'; }, 500); }
+        }, 500);
+    });
+
+    function updateTime() {
+        let dt = new Date();
+        let str = dt.getFullYear() + "年" + (dt.getMonth()+1) + "月" + dt.getDate() + "日 " +
+                 dt.getHours() + "时" + dt.getMinutes() + "分" + dt.getSeconds() + "秒";
+        document.getElementById("showTime").innerHTML = str;
+        setTimeout(updateTime, 1000);
+    }
+    updateTime();
+
+    // 地图相关及浮窗卡片逻辑保持不变
+    const mapContainer = document.getElementById('mapContainer');
+    const cards = [document.getElementById('card1'),document.getElementById('card2'),document.getElementById('card3'),document.getElementById('card4')];
+    const closeAllBtn = document.getElementById('closeAllCardsBtn');
+    const clickHint = document.getElementById('clickHint');
+
+    function setCardPositions() {
+        const rect = mapContainer.getBoundingClientRect();
+        const centerX = rect.width / 2; const centerY = rect.height / 2;
+        const positions = {
+            'top': { left: centerX - 90, top: centerY - 220 },
+            'right': { left: centerX + 110, top: centerY - 70 },
+            'bottom': { left: centerX - 90, top: centerY + 80 },
+            'left': { left: centerX - 290, top: centerY - 70 }
+        };
+        cards.forEach(card => {
+            const posName = card.getAttribute('data-position');
+            const pos = positions[posName];
+            if (pos && card.style) { card.style.left = pos.left + 'px'; card.style.top = pos.top + 'px'; }
+        });
+    }
+
+    function showCards() { cards.forEach(card => card.classList.add('active')); closeAllBtn.classList.add('active'); if (clickHint) clickHint.style.opacity = '0.2'; }
+    function hideCards() { cards.forEach(card => card.classList.remove('active')); closeAllBtn.classList.remove('active'); if (clickHint) clickHint.style.opacity = '0.8'; }
+
+    if (closeAllBtn) { closeAllBtn.addEventListener('click', (e) => { e.stopPropagation(); hideCards(); }); }
+    cards.forEach(card => { if (card) { card.addEventListener('click', (e) => { e.stopPropagation(); const img = card.querySelector('img'); if (img && img.src) window.open(img.src, '_blank'); }); } });
+
+    const chinaMapChart = echarts.init(document.getElementById('china-map'));
+    const mapOption = {
+        title: { text: '', show: false }, tooltip: { trigger: 'item', formatter: params => params.name === '四川' ? '省份：四川<br/>✨ 点击查看都江堰美景 ✨' : '省份：' + params.name },
+        visualMap: { show: false },
+        series: [{ name: '中国地图', type: 'map', mapType: 'china', roam: true, zoom: 1.05,
+            label: { show: true, fontSize: 10, color: '#2A6A60' }, emphasis: { label: { show: true, color: '#fff', fontSize: 12 }, itemStyle: { areaColor: '#FA9FB5' } },
+            itemStyle: { normal: { areaColor: '#74C476', borderColor: '#A1D99B', borderWidth: 1 } },
+            markPoint: { data: [{ name: '都江堰', coord: [103.6, 31.0], value: 1 }], symbol: 'circle', symbolSize: 12, label: { show: true, formatter: '都江堰', position: 'top', color: '#ff0000', fontWeight: 'bold' }, itemStyle: { color: '#ff0000' } }
+        }], backgroundColor: 'transparent'
+    };
+    chinaMapChart.setOption(mapOption);
+    chinaMapChart.on('click', (params) => { if (params.name === '四川') showCards(); });
+    if (mapContainer) { mapContainer.addEventListener('mouseleave', hideCards); }
+    cards.forEach(card => { if (card) card.addEventListener('mouseenter', e => e.stopPropagation()); });
+    window.addEventListener('resize', () => { setTimeout(setCardPositions, 150); chinaMapChart.resize(); const flowChart = echarts.getInstanceByDom(document.getElementById('echartFlow')); if(flowChart) flowChart.resize(); const gdpChart = echarts.getInstanceByDom(document.getElementById('echartGDP')); if(gdpChart) gdpChart.resize(); const perGDPChart = echarts.getInstanceByDom(document.getElementById('echartPerGDP')); if(perGDPChart) perGDPChart.resize(); const wordChart = echarts.getInstanceByDom(document.getElementById('echartWordcloud')); if(wordChart) wordChart.resize(); });
+    setTimeout(setCardPositions, 300);
+
+    const flowChart = echarts.init(document.getElementById('echartFlow'));
+    const flowOption = {
+        backgroundColor: 'transparent', title: { text: '岷江年均径流量与增长率变化', left: 'center', textStyle: { color: '#F7F4F9', fontSize: 14 } },
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { data: ['年均径流量', '间隔增长率(%)'], top: 30, textStyle: { color: '#F7F4F9' } },
+        grid: { left: '15%', right: '15%', top: 80, bottom: '15%', containLabel: true },
+        xAxis: { type: 'category', data: ['1960年', '1980年', '1990年', '2000年', '2010年', '2018年', '2024年'], axisLabel: { color: '#F7F4F9', fontSize: 11 }, axisLine: { lineStyle: { color: '#F7F4F9' } } },
+        yAxis: [{ type: 'value', name: '年均径流量（亿m³）', min: 0, max: 10000, axisLabel: { color: '#F7F4F9' }, splitLine: { lineStyle: { color: 'rgba(247,244,249,0.2)' } } }, { type: 'value', name: '间隔增长率(%)', min: -30, max: 10, axisLabel: { color: '#F7F4F9', formatter: '{value}%' }, splitLine: { show: false } }],
+        series: [{ name: '年均径流量', type: 'line', yAxisIndex: 0, smooth: true, symbol: 'circle', lineStyle: { color: '#F7F4F9', width: 3 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(247,244,249,0.6)' },{ offset: 1, color: 'rgba(247,244,249,0.1)' }] } }, label: { show: true, position: 'top', color: '#F7F4F9', formatter: '{c}' }, data: [4352.32, 765.8, 765.8, 765.8, 765.8, 8000, 765.8] }, { name: '间隔增长率(%)', type: 'line', yAxisIndex: 1, smooth: true, symbol: 'circle', lineStyle: { color: '#F7F4F9', width: 3 }, label: { show: true, position: 'top', color: '#F7F4F9', formatter: '{c}%' }, data: [null, -2.35, -2.22, -2.25, -4.04, 0.47, -20.62] }]
+    };
+    flowChart.setOption(flowOption);
+</script>
+</body>
+</html>
